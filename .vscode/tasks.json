@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 Start Full Stack (Backend + Frontend)",
+      "dependsOn": [
+        "Start Laravel Backend",
+        "Start React Frontend"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Laravel Backend",
+      "type": "shell",
+      "command": "powershell -NoExit -Command \"$env:PATH='D:\\Xampp\\php;D:\\Xampp\\mysql\\bin;'+$env:PATH; cd backend; php artisan serve\"",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "group": "servers",
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Start React Frontend",
+      "type": "shell",
+      "command": "powershell -NoExit -Command \"cd frontend; npm run dev\"",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "group": "servers",
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "📦 Setup Database (Import schema & seed into MySQL)",
+      "type": "shell",
+      "command": "powershell -Command \"$env:PATH='D:\\Xampp\\mysql\\bin;'+$env:PATH; mysql -u root < backend/database/schema_and_seed.sql\"",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "📦 Install Frontend Dependencies (npm install)",
+      "type": "shell",
+      "command": "powershell -Command \"cd frontend; npm install\"",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ]
+}

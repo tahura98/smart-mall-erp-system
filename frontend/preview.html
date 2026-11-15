@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Mall Management System - Live Interactive Portal</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel Standalone for live JSX translation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    @media print {
+      body * { visibility: hidden; }
+      #printable-receipt, #printable-receipt * { visibility: visible; }
+      #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Initial database dataset mirroring Laravel DatabaseSeeder & schema_and_seed.sql
+    const initialDb = {
+      users: [
+        { id: 1, name: 'Mall Super Admin', email: 'admin@smartmall.com', role: 'admin' },
+        { id: 2, name: 'Alex Turner', email: 'alex@urbanthreads.com', role: 'shop_owner' },
+        { id: 3, name: 'Elena Rostova', email: 'elena@apexgadgets.com', role: 'shop_owner' },
+        { id: 4, name: 'Marcus Chen', email: 'marcus@brewbites.com', role: 'shop_owner' },
+      ],
+      shops: [
+        { id: 1, shop_number: 'G-101', floor_name: 'Ground Floor', shop_name: 'Urban Threads Boutique', owner_id: 2, owner_name: 'Alex Turner', monthly_rent: 45000 },
+        { id: 2, shop_number: 'F1-205', floor_name: 'First Floor', shop_name: 'Apex Electronics & Tech', owner_id: 3, owner_name: 'Elena Rostova', monthly_rent: 62000 },
+        { id: 3, shop_number: 'F2-310', floor_name: 'Second Floor', shop_name: 'Brew & Bites Artisan Cafe', owner_id: 4, owner_name: 'Marcus Chen', monthly_rent: 38000 },
+      ],
+      bills: [
+        { id: 1, shop_id: 1, shop_name: 'Urban Threads Boutique', month_year: '2024-09', rent_amount: 45000, utility_bill: 4200, status: 'paid' },
+        { id: 2, shop_id: 1, shop_name: 'Urban Threads Boutique', month_year: '2024-10', rent_amount: 45000, utility_bill: 4850, status: 'paid' },
+        { id: 3, shop_id: 1, shop_name: 'Urban Threads Boutique', month_year: '2024-11', rent_amount: 45000, utility_bill: 5100, status: 'pending' },
+        { id: 4, shop_id: 2, shop_name: 'Apex Electronics & Tech', month_year: '2024-10', rent_amount: 62000, utility_bill: 8300, status: 'paid' },
+        { id: 5, shop_id: 2, shop_name: 'Apex Electronics & Tech', month_year: '2024-11', rent_amount: 62000, utility_bill: 9100, status: 'unpaid' },
+        { id: 6, shop_id: 3, shop_name: 'Brew & Bites Artisan Cafe', month_year: '2024-11', rent_amount: 38000, utility_bill: 3900, status: 'pending' },
+      ],
+      products: [
+        { id: 1, shop_id: 1, name: 'Urban Heritage Denim Jacket', barcode: '8901234001', price: 3499.00, stock: 28 },
+        { id: 2, shop_id: 1, name: 'Slim-Fit Oxford Cotton Shirt', barcode: '8901234002', price: 1899.00, stock: 45 },
+        { id: 3, shop_id: 1, name: 'Classic Tailored Chinos', barcode: '8901234003', price: 2199.00, stock: 32 },
+        { id: 4, shop_id: 1, name: 'Genuine Leather Belt', barcode: '8901234004', price: 899.00, stock: 50 },
+        { id: 5, shop_id: 2, name: 'Pro Wireless ANC Headphones', barcode: '8902345001', price: 8990.00, stock: 22 },
+        { id: 6, shop_id: 2, name: 'Ultra-Fast 65W GaN Charger', barcode: '8902345002', price: 1799.00, stock: 65 },
+        { id: 7, shop_id: 3, name: 'Single Origin Arabica Beans (500g)', barcode: '8903456001', price: 950.00, stock: 35 },
+        { id: 8, shop_id: 3, name: 'Butter Croissant (Pack of 2)', barcode: '8903456002', price: 280.00, stock: 25 },
+      ],
+      sales: [
+        { id: 1, shop_id: 1, shop_name: 'Urban Threads Boutique', total_amount: 5398.00, invoice_number: 'INV-2024-00101', created_at: '2024-11-14 14:22:00' },
+        { id: 2, shop_id: 2, shop_name: 'Apex Electronics & Tech', total_amount: 10789.00, invoice_number: 'INV-2024-00201', created_at: '2024-11-14 16:45:00' },
+      ]
+    };
+
+    function App() {
+      // Auth state
+      const [currentUser, setCurrentUser] = useState(null); // null means on Login page
+      const [email, setEmail] = useState('admin@smartmall.com');
+      const [password, setPassword] = useState('password123');
+
+      // Database state
+      const [db, setDb] = useState(initialDb);
+
+      // Admin Tab & Form state
+      const [adminTab, setAdminTab] = useState('overview'); // 'overview' | 'shops' | 'billing'
+      const [showAddShopModal, setShowAddShopModal] = useState(false);
+      const [showAddBillModal, setShowAddBillModal] = useState(false);
+      const [newShop, setNewShop] = useState({ shop_number: '', floor_name: 'Ground Floor', shop_name: '', owner_id: 2, monthly_rent: '' });
+      const [newBill, setNewBill] = useState({ shop_id: 1, month_year: '2024-12', rent_amount: '', utility_bill: '', status: 'pending' });
+
+      // Owner POS state
+      const [ownerTab, setOwnerTab] = useState('pos'); // 'pos' | 'inventory' | 'sales'
+      const [posSearch, setPosSearch] = useState('');
+      const [cart, setCart] = useState([]);
+      const [discount, setDiscount] = useState(0);
+      const [activeReceipt, setActiveReceipt] = useState(null);
+      const [showReceiptModal, setShowReceiptModal] = useState(false);
+      const [toastMsg, setToastMsg] = useState('');
+
+      // Calculations
+      const totalCollected = db.bills.filter(b => b.status === 'paid').reduce((acc, b) => acc + b.rent_amount + b.utility_bill, 0);
+      const totalDue = db.bills.filter(b => b.status === 'unpaid' || b.status === 'pending').reduce((acc, b) => acc + b.rent_amount + b.utility_bill, 0);
+      const ownerShop = db.shops.find(s => s.owner_id === currentUser?.id) || db.shops[0];
+      const ownerProducts = db.products.filter(p => p.shop_id === ownerShop?.id);
+
+      const showToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(''), 4000);
+      };
+
+      // Login handler
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (user) {
+          setCurrentUser(user);
+          showToast(`Signed in as ${user.name} (${user.role === 'admin' ? 'Super Admin' : 'Shop Owner'})`);
+        } else {
+          alert('User not found. Use one of the demo buttons.');
+        }
+      };
+
+      // Logout handler
+      const handleLogout = () => {
+        setCurrentUser(null);
+        setCart([]);
+      };
+
+      // Add Shop
+      const handleCreateShop = (e) => {
+        e.preventDefault();
+        const owner = db.users.find(u => u.id === parseInt(newShop.owner_id));
+        const created = {
+          id: db.shops.length + 1,
+          shop_number: newShop.shop_number,
+          floor_name: newShop.floor_name,
+          shop_name: newShop.shop_name,
+          owner_id: parseInt(newShop.owner_id),
+          owner_name: owner ? owner.name : 'Owner',
+          monthly_rent: parseFloat(newShop.monthly_rent)
+        };
+        setDb({ ...db, shops: [created, ...db.shops] });
+        setShowAddShopModal(false);
+        showToast(`Shop '${created.shop_name}' created successfully!`);
+      };
+
+      // Add Bill
+      const handleCreateBill = (e) => {
+        e.preventDefault();
+        const target = db.shops.find(s => s.id === parseInt(newBill.shop_id));
+        const created = {
+          id: db.bills.length + 1,
+          shop_id: target.id,
+          shop_name: target.shop_name,
+          month_year: newBill.month_year,
+          rent_amount: parseFloat(newBill.rent_amount || target.monthly_rent),
+          utility_bill: parseFloat(newBill.utility_bill || 0),
+          status: newBill.status
+        };
+        setDb({ ...db, bills: [created, ...db.bills] });
+        setShowAddBillModal(false);
+        showToast(`Bill generated for ${created.shop_name} (${created.month_year})!`);
+      };
+
+      // Toggle Bill Status
+      const toggleBillStatus = (billId, targetStatus) => {
+        setDb({
+          ...db,
+          bills: db.bills.map(b => b.id === billId ? { ...b, status: targetStatus } : b)
+        });
+        showToast(`Bill status updated to ${targetStatus.toUpperCase()}`);
+      };
+
+      // POS Add to Cart
+      const addToCart = (product) => {
+        if (product.stock <= 0) return;
+        const existing = cart.find(item => item.product.id === product.id);
+        if (existing) {
+          if (existing.qty >= product.stock) {
+            alert(`Stock limit reached! Only ${product.stock} units available.`);
+            return;
+          }
+          setCart(cart.map(item => item.product.id === product.id ? { ...item, qty: item.qty + 1 } : item));
+        } else {
+          setCart([...cart, { product, qty: 1 }]);
+        }
+      };
+
+      const updateCartQty = (productId, delta) => {
+        const prod = db.products.find(p => p.id === productId);
+        setCart(cart.map(item => {
+          if (item.product.id === productId) {
+            const next = item.qty + delta;
+            if (next > prod.stock) {
+              alert(`Only ${prod.stock} units available.`);
+              return item;
+            }
+            return next > 0 ? { ...item, qty: next } : null;
+          }
+          return item;
+        }).filter(Boolean));
+      };
+
+      // POS Checkout & Real Stock Deduction
+      const handlePOSCheckout = () => {
+        if (cart.length === 0) return;
+
+        // Atomically deduct stock from database
+        const updatedProducts = db.products.map(prod => {
+          const inCart = cart.find(c => c.product.id === prod.id);
+          if (inCart) {
+            return { ...prod, stock: Math.max(0, prod.stock - inCart.qty) };
+          }
+          return prod;
+        });
+
+        const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.qty, 0);
+        const discountAmt = (subtotal * discount) / 100;
+        const total = subtotal - discountAmt;
+        const invNo = `INV-2024-${Math.floor(10000 + Math.random() * 90000)}`;
+
+        const newSale = {
+          id: db.sales.length + 1,
+          shop_id: ownerShop.id,
+          shop_name: ownerShop.shop_name,
+          total_amount: total,
+          invoice_number: invNo,
+          created_at: new Date().toLocaleString()
+        };
+
+        const receiptData = {
+          invNo,
+          date: new Date().toLocaleString(),
+          shopName: ownerShop.shop_name,
+          shopNumber: ownerShop.shop_number,
+          floor: ownerShop.floor_name,
+          items: cart.map(c => ({ name: c.product.name, barcode: c.product.barcode, price: c.product.price, qty: c.qty, subtotal: c.product.price * c.qty })),
+          subtotal,
+          discount: discountAmt,
+          total
+        };
+
+        setDb({
+          ...db,
+          products: updatedProducts,
+          sales: [newSale, ...db.sales]
+        });
+
+        setActiveReceipt(receiptData);
+        setShowReceiptModal(true);
+        setCart([]);
+        showToast(`POS Sale ${invNo} verified! Stock successfully decremented in database.`);
+      };
+
+      // ================= VIEW: LOGIN PAGE =================
+      if (!currentUser) {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+            <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-slate-200">
+              <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-sky-600 to-indigo-600 rounded-2xl text-white font-black text-2xl mx-auto shadow-md">
+                🏢
+              </div>
+              <h2 className="text-2xl font-black text-center text-slate-900 mt-4">Smart Mall Portal</h2>
+              <p className="text-xs text-center text-slate-500 mt-1">Commercial Property & POS System</p>
+
+              <form onSubmit={handleLogin} className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Email</label>
+                  <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Password</label>
+                  <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                </div>
+                <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md transition-all">
+                  Sign In to Dashboard &rarr;
+                </button>
+              </form>
+
+              <div className="mt-6 pt-5 border-t border-slate-100">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">1-Click Demo Accounts:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => { setEmail('admin@smartmall.com'); }} className={`p-2 rounded-xl text-xs font-bold text-left border ${email === 'admin@smartmall.com' ? 'bg-sky-50 border-sky-300 text-sky-800' : 'bg-slate-50 text-slate-700'}`}>
+                    🛡️ Admin Demo<br/><span className="text-[10px] text-slate-400 font-normal">admin@smartmall.com</span>
+                  </button>
+                  <button onClick={() => { setEmail('alex@urbanthreads.com'); }} className={`p-2 rounded-xl text-xs font-bold text-left border ${email === 'alex@urbanthreads.com' ? 'bg-indigo-50 border-indigo-300 text-indigo-800' : 'bg-slate-50 text-slate-700'}`}>
+                    🏪 Shop Owner Demo<br/><span className="text-[10px] text-slate-400 font-normal">alex@urbanthreads.com</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // ================= VIEW: MAIN DASHBOARD =================
+      const isAdmin = currentUser.role === 'admin';
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-50">
+          {/* Header */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+            <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold ${isAdmin ? 'bg-sky-600' : 'bg-indigo-600'}`}>
+                  {isAdmin ? '🛡️' : '🏪'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-900">Smart Mall</span>
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${isAdmin ? 'bg-sky-100 text-sky-800' : 'bg-indigo-100 text-indigo-800'}`}>
+                      {isAdmin ? 'Admin Console' : 'Shop Owner POS'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">{isAdmin ? 'Mall Operations & Lease Control' : ownerShop?.shop_name}</p>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <nav className="flex space-x-1">
+                {isAdmin ? (
+                  <>
+                    <button onClick={() => setAdminTab('overview')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${adminTab === 'overview' ? 'bg-sky-100 text-sky-800' : 'text-slate-600'}`}>Overview</button>
+                    <button onClick={() => setAdminTab('shops')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${adminTab === 'shops' ? 'bg-sky-100 text-sky-800' : 'text-slate-600'}`}>Shops ({db.shops.length})</button>
+                    <button onClick={() => setAdminTab('billing')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${adminTab === 'billing' ? 'bg-sky-100 text-sky-800' : 'text-slate-600'}`}>Billing & Due</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setOwnerTab('pos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ownerTab === 'pos' ? 'bg-indigo-100 text-indigo-800' : 'text-slate-600'}`}>POS Terminal</button>
+                    <button onClick={() => setOwnerTab('inventory')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ownerTab === 'inventory' ? 'bg-indigo-100 text-indigo-800' : 'text-slate-600'}`}>Inventory ({ownerProducts.length})</button>
+                    <button onClick={() => setOwnerTab('sales')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ownerTab === 'sales' ? 'bg-indigo-100 text-indigo-800' : 'text-slate-600'}`}>Sales History</button>
+                  </>
+                )}
+              </nav>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-700 hidden sm:inline">{currentUser.name}</span>
+                <button onClick={handleLogout} className="text-xs font-bold text-rose-600 px-3 py-1.5 bg-rose-50 rounded-lg hover:bg-rose-100">
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Toast Notification */}
+          {toastMsg && (
+            <div className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 text-center shadow-md">
+              ✅ {toastMsg}
+            </div>
+          )}
+
+          {/* Main Content */}
+          <main className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+            {/* ================= ADMIN VIEW ================= */}
+            {isAdmin && (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Total Registered Shops</span>
+                    <div className="text-3xl font-black text-slate-900 mt-2">{db.shops.length}</div>
+                    <p className="text-xs text-slate-400 mt-1">Ground, 1st & 2nd floors</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Collected Rent & Utilities</span>
+                    <div className="text-3xl font-black text-emerald-600 mt-2">${totalCollected.toLocaleString()}</div>
+                    <p className="text-xs text-slate-400 mt-1">Paid in full</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Due / Outstanding Rent</span>
+                    <div className="text-3xl font-black text-rose-600 mt-2">${totalDue.toLocaleString()}</div>
+                    <p className="text-xs text-slate-400 mt-1">Pending clearance</p>
+                  </div>
+                </div>
+
+                {/* Sub-view: Shops */}
+                {adminTab === 'shops' && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                      <h3 className="font-extrabold text-slate-900 text-lg">Mall Store Leases</h3>
+                      <button onClick={() => setShowAddShopModal(true)} className="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-sky-700">
+                        + Add Shop
+                      </button>
+                    </div>
+
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
+                        <tr>
+                          <th className="p-3">Shop Number</th>
+                          <th className="p-3">Store Name</th>
+                          <th className="p-3">Floor</th>
+                          <th className="p-3">Assigned Owner</th>
+                          <th className="p-3">Monthly Rent</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {db.shops.map(s => (
+                          <tr key={s.id} className="hover:bg-slate-50">
+                            <td className="p-3 font-mono font-bold">{s.shop_number}</td>
+                            <td className="p-3 font-bold text-slate-900">{s.shop_name}</td>
+                            <td className="p-3">{s.floor_name}</td>
+                            <td className="p-3 text-slate-600">{s.owner_name}</td>
+                            <td className="p-3 font-bold text-emerald-600">${parseFloat(s.monthly_rent).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-view: Billing */}
+                {adminTab === 'billing' && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                      <h3 className="font-extrabold text-slate-900 text-lg">Billing & Due Management</h3>
+                      <button onClick={() => setShowAddBillModal(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700">
+                        + Generate Bill
+                      </button>
+                    </div>
+
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
+                        <tr>
+                          <th className="p-3">Bill ID</th>
+                          <th className="p-3">Shop</th>
+                          <th className="p-3">Month</th>
+                          <th className="p-3">Rent + Utility</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {db.bills.map(b => (
+                          <tr key={b.id} className="hover:bg-slate-50">
+                            <td className="p-3 font-mono font-bold">#{b.id}</td>
+                            <td className="p-3 font-bold text-slate-900">{b.shop_name}</td>
+                            <td className="p-3 font-mono">{b.month_year}</td>
+                            <td className="p-3 font-bold">${(b.rent_amount + b.utility_bill).toLocaleString()}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                {b.status === 'unpaid' ? 'Due' : b.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right space-x-2">
+                              {b.status !== 'paid' && (
+                                <button onClick={() => toggleBillStatus(b.id, 'paid')} className="px-2.5 py-1 bg-emerald-600 text-white rounded text-[11px] font-bold">
+                                  Mark as Paid
+                                </button>
+                              )}
+                              {b.status !== 'unpaid' && (
+                                <button onClick={() => toggleBillStatus(b.id, 'unpaid')} className="px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[11px] font-bold">
+                                  Mark as Due
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-view: Overview */}
+                {adminTab === 'overview' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">
+                      <h4 className="font-bold text-slate-900 text-sm">Quick Shops Preview</h4>
+                      {db.shops.slice(0, 3).map(s => (
+                        <div key={s.id} className="p-3 bg-slate-50 rounded-xl flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-900">{s.shop_name}</span>
+                            <span className="text-slate-400 block font-mono">{s.shop_number} &bull; {s.floor_name}</span>
+                          </div>
+                          <span className="font-bold text-emerald-600">${s.monthly_rent.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">
+                      <h4 className="font-bold text-slate-900 text-sm">Quick Bills Due</h4>
+                      {db.bills.filter(b => b.status !== 'paid').slice(0, 3).map(b => (
+                        <div key={b.id} className="p-3 bg-slate-50 rounded-xl flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-900">{b.shop_name}</span>
+                            <span className="text-slate-400 block">{b.month_year}</span>
+                          </div>
+                          <button onClick={() => toggleBillStatus(b.id, 'paid')} className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold">
+                            Mark Paid
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ================= SHOP OWNER VIEW ================= */}
+            {!isAdmin && (
+              <>
+                {/* SPLIT-SCREEN POS TERMINAL */}
+                {ownerTab === 'pos' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left: Product Grid */}
+                    <div className="lg:col-span-7 space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Search product name or barcode..."
+                        value={posSearch}
+                        onChange={e => setPosSearch(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                      />
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {ownerProducts
+                          .filter(p => p.name.toLowerCase().includes(posSearch.toLowerCase()) || p.barcode.includes(posSearch))
+                          .map(prod => (
+                            <button
+                              key={prod.id}
+                              onClick={() => addToCart(prod)}
+                              disabled={prod.stock <= 0}
+                              className={`p-4 rounded-2xl border text-left flex flex-col justify-between h-40 transition-all ${prod.stock <= 0 ? 'bg-slate-100 opacity-50 cursor-not-allowed' : 'bg-white hover:border-indigo-500 shadow-xs'}`}
+                            >
+                              <div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prod.stock <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'}`}>
+                                  {prod.stock <= 0 ? 'Out of Stock' : `${prod.stock} in stock`}
+                                </span>
+                                <h5 className="font-bold text-slate-900 text-xs mt-2 line-clamp-2">{prod.name}</h5>
+                              </div>
+                              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                                <span className="font-black text-slate-900 text-sm">${prod.price.toFixed(2)}</span>
+                                <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold">+</span>
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Right: Live Cart */}
+                    <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-sm sticky top-24">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                        <h4 className="font-black text-slate-900 text-base">🛒 POS Cart ({cart.length})</h4>
+                        {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-rose-600 font-bold">Clear</button>}
+                      </div>
+
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {cart.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-slate-400">Cart is empty. Click products on left.</div>
+                        ) : (
+                          cart.map(item => (
+                            <div key={item.product.id} className="p-2.5 bg-slate-50 rounded-xl flex justify-between items-center text-xs">
+                              <div className="min-w-0 flex-1 pr-2">
+                                <div className="font-bold text-slate-900 truncate">{item.product.name}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">${item.product.price} each &bull; Stock left: {item.product.stock}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center border border-slate-200 rounded-lg bg-white">
+                                  <button onClick={() => updateCartQty(item.product.id, -1)} className="px-2 py-0.5 text-xs font-bold">-</button>
+                                  <span className="px-2 font-bold">{item.qty}</span>
+                                  <button onClick={() => updateCartQty(item.product.id, 1)} className="px-2 py-0.5 text-xs font-bold">+</button>
+                                </div>
+                                <span className="font-mono font-bold w-14 text-right">${(item.product.price * item.qty).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Total & Checkout */}
+                      <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
+                        <div className="flex justify-between text-slate-600">
+                          <span>Subtotal:</span>
+                          <span className="font-mono font-bold">${cart.reduce((acc, i) => acc + i.product.price * i.qty, 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Discount:</span>
+                          <div className="space-x-1">
+                            {[0, 5, 10].map(pct => (
+                              <button key={pct} onClick={() => setDiscount(pct)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${discount === pct ? 'bg-indigo-600 text-white' : 'bg-slate-100'}`}>
+                                {pct}%
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
+                          <span>Grand Total:</span>
+                          <span className="font-mono text-indigo-600">
+                            ${Math.max(0, cart.reduce((acc, i) => acc + i.product.price * i.qty, 0) * (1 - discount / 100)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handlePOSCheckout}
+                        disabled={cart.length === 0}
+                        className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40 transition-all"
+                      >
+                        Complete Sale & Deduct Stock ⚡
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-view: Inventory */}
+                {ownerTab === 'inventory' && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                    <h3 className="font-extrabold text-slate-900 text-lg">Inventory Stock Catalog</h3>
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
+                        <tr>
+                          <th className="p-3">Product Name</th>
+                          <th className="p-3">Barcode</th>
+                          <th className="p-3">Price</th>
+                          <th className="p-3">Database Stock</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {ownerProducts.map(p => (
+                          <tr key={p.id}>
+                            <td className="p-3 font-bold text-slate-900">{p.name}</td>
+                            <td className="p-3 font-mono text-slate-600">{p.barcode}</td>
+                            <td className="p-3 font-bold">${p.price.toFixed(2)}</td>
+                            <td className="p-3">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'}`}>
+                                {p.stock} units
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-view: Sales */}
+                {ownerTab === 'sales' && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                    <h3 className="font-extrabold text-slate-900 text-lg">Sales Invoices</h3>
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-bold uppercase">
+                        <tr>
+                          <th className="p-3">Invoice Number</th>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Total Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {db.sales.map(s => (
+                          <tr key={s.id}>
+                            <td className="p-3 font-mono font-bold text-slate-900">{s.invoice_number}</td>
+                            <td className="p-3 text-slate-500">{s.created_at}</td>
+                            <td className="p-3 font-bold text-emerald-600">${parseFloat(s.total_amount).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+
+          {/* ================= MODAL: ADD SHOP ================= */}
+          {showAddShopModal && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
+                <h4 className="font-bold text-slate-900 text-base">Add New Shop Store</h4>
+                <form onSubmit={handleCreateShop} className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-bold text-slate-600">Shop Number</label>
+                    <input required placeholder="e.g. G-105" value={newShop.shop_number} onChange={e => setNewShop({...newShop, shop_number: e.target.value})} className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-600">Shop Name</label>
+                    <input required placeholder="e.g. Luxe Perfumes" value={newShop.shop_name} onChange={e => setNewShop({...newShop, shop_name: e.target.value})} className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-600">Floor</label>
+                    <select value={newShop.floor_name} onChange={e => setNewShop({...newShop, floor_name: e.target.value})} className="w-full p-2 border rounded-lg">
+                      <option value="Ground Floor">Ground Floor</option>
+                      <option value="First Floor">First Floor</option>
+                      <option value="Second Floor">Second Floor</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-600">Monthly Rent ($)</label>
+                    <input type="number" required placeholder="45000" value={newShop.monthly_rent} onChange={e => setNewShop({...newShop, monthly_rent: e.target.value})} className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setShowAddShopModal(false)} className="px-3 py-1.5 border rounded-lg">Cancel</button>
+                    <button type="submit" className="px-3 py-1.5 bg-sky-600 text-white font-bold rounded-lg">Save Shop</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ================= MODAL: ADD BILL ================= */}
+          {showAddBillModal && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-xl">
+                <h4 className="font-bold text-slate-900 text-base">Generate Monthly Bill</h4>
+                <form onSubmit={handleCreateBill} className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-bold text-slate-600">Target Shop</label>
+                    <select value={newBill.shop_id} onChange={e => setNewBill({...newBill, shop_id: e.target.value})} className="w-full p-2 border rounded-lg">
+                      {db.shops.map(s => <option key={s.id} value={s.id}>{s.shop_number} - {s.shop_name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-600">Month / Year</label>
+                    <input required placeholder="2024-12" value={newBill.month_year} onChange={e => setNewBill({...newBill, month_year: e.target.value})} className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-600">Utility Bill ($)</label>
+                    <input type="number" required placeholder="4500" value={newBill.utility_bill} onChange={e => setNewBill({...newBill, utility_bill: e.target.value})} className="w-full p-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-600">Status</label>
+                    <select value={newBill.status} onChange={e => setNewBill({...newBill, status: e.target.value})} className="w-full p-2 border rounded-lg">
+                      <option value="pending">Pending</option>
+                      <option value="unpaid">Due (Unpaid)</option>
+                      <option value="paid">Paid</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setShowAddBillModal(false)} className="px-3 py-1.5 border rounded-lg">Cancel</button>
+                    <button type="submit" className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-lg">Create Bill</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ================= MODAL: PRINTABLE RECEIPT ================= */}
+          {showReceiptModal && activeReceipt && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+                <div id="printable-receipt" className="p-4 bg-slate-50 rounded-2xl border border-slate-200 font-mono text-xs space-y-3">
+                  <div className="text-center pb-2 border-b border-dashed border-slate-300">
+                    <h5 className="font-black text-slate-900 text-sm uppercase">{activeReceipt.shopName}</h5>
+                    <p className="text-[10px] text-slate-400">Shop {activeReceipt.shopNumber} &bull; {activeReceipt.floor} &bull; Smart Mall</p>
+                  </div>
+                  <div className="text-[10px] text-slate-500 space-y-0.5">
+                    <div>Invoice: <strong className="text-slate-900">{activeReceipt.invNo}</strong></div>
+                    <div>Date: {activeReceipt.date}</div>
+                  </div>
+                  <div className="border-t border-b border-dashed border-slate-300 py-2 space-y-1">
+                    {activeReceipt.items.map((it, i) => (
+                      <div key={i} className="flex justify-between text-[11px]">
+                        <span>{it.qty}x {it.name}</span>
+                        <span className="font-bold">${it.subtotal.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between font-black text-sm text-slate-900 pt-1">
+                    <span>TOTAL:</span>
+                    <span>${activeReceipt.total.toFixed(2)}</span>
+                  </div>
+                  <div className="text-center text-[10px] text-slate-400 pt-2 border-t border-dashed border-slate-300">
+                    ||||| |||||| |||| |||||
+                    <p>Thank you for shopping at Smart Mall!</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setShowReceiptModal(false)} className="px-3 py-1.5 border rounded-xl text-xs font-bold text-slate-600">Close</button>
+                  <button onClick={() => window.print()} className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm">Print Invoice 🖨️</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
