@@ -6,17 +6,22 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect to their appropriate authorized portal
-    return user.role === 'admin' ? (
-      <Navigate to="/admin" replace />
-    ) : (
-      <Navigate to="/owner" replace />
-    );
+    // Redirect to user's authorized portal
+    if (user.role === 'super_admin' || user.role === 'accounts_officer') {
+      return <Navigate to="/admin" replace />;
+    }
+    if (user.role === 'tenant') {
+      return <Navigate to="/tenant" replace />;
+    }
+    if (user.role === 'parking_operator') {
+      return <Navigate to="/parking" replace />;
+    }
+    return <Navigate to="/login" replace />;
   }
 
   return children;

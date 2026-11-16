@@ -12,7 +12,7 @@ const api = axios.create({
 // Request Interceptor: Attach Sanctum Bearer Token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('smart_mall_token');
+    const token = localStorage.getItem('toc_erp_token') || localStorage.getItem('smart_mall_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -21,11 +21,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle global 401s
+// Response Interceptor: Handle 401s
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
+      localStorage.removeItem('toc_erp_token');
+      localStorage.removeItem('toc_erp_user');
       localStorage.removeItem('smart_mall_token');
       localStorage.removeItem('smart_mall_user');
       if (window.location.pathname !== '/login') {

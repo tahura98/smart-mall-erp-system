@@ -4,20 +4,29 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import OwnerDashboard from './pages/owner/OwnerDashboard';
+import TenantDashboard from './pages/tenant/TenantDashboard';
+import ParkingDashboard from './pages/parking/ParkingDashboard';
 
 function RootRedirect() {
   const { user, isAuthenticated } = useAuth();
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  return user.role === 'admin' ? (
-    <Navigate to="/admin" replace />
-  ) : (
-    <Navigate to="/owner" replace />
-  );
+  if (user.role === 'super_admin' || user.role === 'accounts_officer') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (user.role === 'tenant') {
+    return <Navigate to="/tenant" replace />;
+  }
+
+  if (user.role === 'parking_operator') {
+    return <Navigate to="/parking" replace />;
+  }
+
+  return <Navigate to="/admin" replace />;
 }
 
 export default function App() {
@@ -28,22 +37,35 @@ export default function App() {
           {/* Public Login Route */}
           <Route path="/login" element={<Login />} />
 
-          {/* Admin Protected Routes */}
+          {/* 1) Executive Management Portal (super_admin & accounts_officer) */}
           <Route
             path="/admin/*"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'accounts_officer']}>
                 <AdminDashboard />
               </ProtectedRoute>
             }
           />
 
-          {/* Shop Owner Protected Routes */}
+          {/* 2) Tenant & Shop Owner Portal (tenant) */}
           <Route
-            path="/owner/*"
+            path="/tenant/*"
             element={
-              <ProtectedRoute allowedRoles={['shop_owner']}>
-                <OwnerDashboard />
+              <ProtectedRoute allowedRoles={['tenant', 'super_admin']}>
+                <TenantDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Backward compatibility route for /owner */}
+          <Route path="/owner/*" element={<Navigate to="/tenant" replace />} />
+
+          {/* 3) Basement Parking Control (parking_operator) */}
+          <Route
+            path="/parking/*"
+            element={
+              <ProtectedRoute allowedRoles={['parking_operator', 'super_admin', 'accounts_officer']}>
+                <ParkingDashboard />
               </ProtectedRoute>
             }
           />

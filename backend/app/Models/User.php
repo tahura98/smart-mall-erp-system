@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -21,8 +20,10 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
-        'role', // 'admin' or 'shop_owner'
+        'role', // 'super_admin', 'accounts_officer', 'tenant', 'parking_operator'
+        'is_active',
     ];
 
     /**
@@ -45,30 +46,59 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
     /**
-     * Get the shops owned by this user (if role is shop_owner).
+     * Leases contracted under this tenant account.
      */
-    public function shops(): HasMany
+    public function leases(): HasMany
     {
-        return $this->hasMany(Shop::class, 'owner_id');
+        return $this->hasMany(Lease::class, 'tenant_user_id');
     }
 
     /**
-     * Check if user is an administrator.
+     * Maintenance tickets created by this tenant.
      */
-    public function isAdmin(): bool
+    public function maintenanceTickets(): HasMany
     {
-        return $this->role === 'admin';
+        return $this->hasMany(MaintenanceTicket::class, 'tenant_user_id');
     }
 
     /**
-     * Check if user is a shop owner.
+     * RBAC helper checks
      */
-    public function isShopOwner(): bool
+    public function isSuperAdmin(): bool
     {
-        return $this->role === 'shop_owner';
+        return $this->role === 'super_admin';
+    }
+
+    public function isAccountsOfficer(): bool
+    {
+        return $this->role === 'accounts_officer';
+    }
+
+    public function isTenant(): bool
+    {
+        return $this->role === 'tenant';
+    }
+
+    public function isParkingOperator(): bool
+    {
+        return $this->role === 'parking_operator';
+    }
+
+    /**
+     * Check if user has any of the given roles.
+     *
+     * @param string|array $roles
+     */
+    public function hasRole(string|array $roles): bool
+    {
+        if (is_array($roles)) {
+            return in_array($this->role, $roles);
+        }
+        return $this->role === $roles;
     }
 }

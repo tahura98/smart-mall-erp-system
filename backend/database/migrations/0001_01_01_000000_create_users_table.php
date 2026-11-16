@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Run the migrations for Total Office Center (TOC) ERP users table.
      */
     public function up(): void
     {
@@ -15,9 +15,16 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('phone', 30)->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'shop_owner'])->default('shop_owner');
+            $table->enum('role', [
+                'super_admin',
+                'accounts_officer',
+                'tenant',
+                'parking_operator'
+            ])->default('tenant');
+            $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
         });

@@ -1,112 +1,91 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Building2, Shield, Store, LogOut, UserCheck } from 'lucide-react';
+import { Building2, LogOut, User, ShieldCheck, Banknote } from 'lucide-react';
 
-export default function Header({ activeTab, setActiveTab, navTabs, title, subtitle }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+export default function Header({ currentSection, onNavigate }) {
+  const { user, logout, role } = useAuth();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+  const getRoleBadge = () => {
+    switch (role) {
+      case 'super_admin':
+        return { label: 'Super Admin', bg: 'bg-amber-500/15 text-amber-400 border-amber-500/30' };
+      case 'accounts_officer':
+        return { label: 'Accounts Officer', bg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' };
+      case 'tenant':
+        return { label: 'Tenant Account', bg: 'bg-sky-500/15 text-sky-400 border-sky-500/30' };
+      case 'parking_operator':
+        return { label: 'Parking Operator', bg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30' };
+      default:
+        return { label: 'Portal User', bg: 'bg-slate-700 text-slate-300 border-slate-600' };
+    }
   };
 
-  const isAdmin = user?.role === 'admin';
+  const badge = getRoleBadge();
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+    <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-xl shadow-slate-950/20">
+      {/* Top subtle gold accent strip */}
+      <div className="h-0.5 bg-gradient-to-r from-amber-600 via-amber-400 to-amber-600 w-full"></div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Brand */}
+        <div className="flex items-center justify-between h-16">
+          {/* Brand & Complex Title */}
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md ${
-              isAdmin 
-                ? 'bg-gradient-to-tr from-sky-600 to-indigo-600 shadow-sky-500/20' 
-                : 'bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-indigo-500/20'
-            }`}>
-              {isAdmin ? <Shield className="w-5 h-5" /> : <Store className="w-5 h-5" />}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-black/40">
+              <Building2 className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold tracking-tight text-slate-900">Smart Mall</span>
-                <span className={`text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                  isAdmin 
-                    ? 'bg-sky-50 text-sky-700 border-sky-200' 
-                    : 'bg-purple-50 text-purple-700 border-purple-200'
-                }`}>
-                  {isAdmin ? 'Admin Console' : 'Shop Owner POS'}
+                <span className="text-base font-extrabold tracking-wider text-white uppercase font-sans">
+                  Total Office Center
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 uppercase tracking-widest">
+                  ERP
                 </span>
               </div>
-              <p className="text-xs text-slate-500 hidden sm:block">{subtitle || 'Enterprise Commercial Mall Management'}</p>
+              <p className="text-[11px] text-slate-400 tracking-wide hidden sm:block">
+                Dhaka Premier Commercial Complex & Mall System
+              </p>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          {navTabs && (
-            <nav className="hidden md:flex space-x-1">
-              {navTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      isActive
-                        ? isAdmin
-                          ? 'bg-sky-50 text-sky-700 border border-sky-100 shadow-2xs'
-                          : 'bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    {Icon && <Icon className={`w-4 h-4 ${isActive ? (isAdmin ? 'text-sky-600' : 'text-indigo-600') : 'text-slate-400'}`} />}
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
-
-          {/* User profile & Logout */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-bold text-slate-800">{user?.name}</span>
-              <span className="text-[10px] text-slate-400 font-mono">{user?.email}</span>
+          {/* Right Section: Currency Badge, User Info, Logout */}
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Currency Pill */}
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-xs text-slate-300 font-medium">
+              <Banknote className="w-3.5 h-3.5 text-amber-400" />
+              <span>Currency:</span>
+              <strong className="text-amber-400 font-semibold">BDT (৳)</strong>
             </div>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors"
-              title="Sign out of account"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+            {/* User Profile Pill */}
+            <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-slate-800">
+              <div className="text-right hidden sm:block">
+                <div className="text-xs font-bold text-white tracking-tight flex items-center justify-end gap-1.5">
+                  {user?.name || 'Authorized User'}
+                </div>
+                <div className="text-[11px] text-slate-400 flex items-center justify-end gap-1">
+                  <span className={`inline-block px-1.5 py-0.2 rounded border text-[10px] font-semibold ${badge.bg}`}>
+                    {badge.label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400 font-bold text-sm shadow-inner">
+                {user?.name?.charAt(0) || 'U'}
+              </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={logout}
+                title="Sign out of TOC ERP"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all active:scale-95"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Mobile Nav */}
-        {navTabs && (
-          <div className="md:hidden flex overflow-x-auto py-2 border-t border-slate-100 space-x-1">
-            {navTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
-                    isActive ? 'bg-sky-50 text-sky-700 border border-sky-100' : 'text-slate-600'
-                  }`}
-                >
-                  {Icon && <Icon className="w-3.5 h-3.5" />}
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
     </header>
   );
